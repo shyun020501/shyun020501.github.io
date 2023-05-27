@@ -1,36 +1,43 @@
-# This is a basic workflow to help you get started with Actions
+# Workflow 이름
+name: deploy
 
-name: name
+on: # workflow가 언제 실행되는지 설정
+  # main branch에서(만) push나 pull request가 있을 때 trigger 됨
+  push: # push가 있을 때
+    branches: [ main ] # branch가 main일 때
+  pull_request: # pull request가 있을 때
+    branches: [ main ] # branch가 main일 때
 
-# Controls when the workflow will run
-on:
-  # Triggers the workflow on push or pull request events but only for the main branch
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
-
-  # Allows you to run this workflow manually from the Actions tab
+  # Actions 탭에서 이 워크플로우를 수동으로 실행할 수 있도록 허용
   workflow_dispatch:
 
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+# GITHUB_TOKEN의 권한을 설정하여 GitHub Pages에 배포할 수 있도록 허용
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 동시에 하나의 deployment만 허용
+concurrency:
+  group: "pages"
+  cancel-in-progress: true # 동일한 동시성 그룹에서 현재 실행 중인 작업 또는 workflow도 취소하도록 하는 옵션
+
 jobs:
-  # This workflow contains a single job called "build"
-  build:
-    # The type of runner that the job will run on
-    runs-on: ubuntu-latest
-
-    # Steps represent a sequence of tasks that will be executed as part of the job
-    steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - uses: actions/checkout@v2
-
-      # Runs a single command using the runners shell
-      - name: Deploy to Github Pages 
-        run: echo Hello, world!
-
-      # Runs a set of commands using the runners shell
-      - name: Run a multi-line script
-        run: |
-          echo Add other actions to build,
-          echo test, and deploy your project.
+  deploy: 
+    environment: # 배포에 사용되는 environment 지정
+      name: github-pages # Github에 만들어져 있는 environment (Actions에서 확인 가능)
+      url: ${{ steps.deployment.outputs.page_url }} # 배포 시 해당 url 참조 (step_id: deployment)
+    runs-on: ubuntu-latest # 돌아가는 환경 정의: 최신 버전 ubuntu에서 실행
+    steps: # 순차적으로 실행할 작업 단계 명시
+      - name: Checkout # 코드 저장소로 부터 CI 서버로 코드를 내려받도록 워크플로우를 구성할 수 있음
+        uses: actions/checkout@v3 # {소유자}/{저장소명}@{참조자} => 소유자: action, 저장소: checkout, 버전 v3 사용
+      - name: Configure pages  # 페이지를 활성화하고 사이트에 대한 다양한 metadata를 추출하는 데 사용되는 액션
+        uses: actions/configure-pages@v2 # {소유자}/{저장소명}@{참조자} => 소유자: action, 저장소: configure-pages, 버전 v2 사용
+      - name: Upload page artifact # GitHub Pages에 배포할 수 있는 아티팩트를 패키징하고 업로드하는 복합 액션
+        uses: actions/upload-pages-artifact@v1 # {소유자}/{저장소명}@{참조자} => 소유자: action, 저장소: upload-pages-artifact, 버전 v1 사용
+        with:
+          # 전체 repository를 업로드
+          path: '.'
+      - name: Deploy to GitHub Pages # Action artifact를 Github pages에 deploy하도록 사용되는 액션
+        id: deployment # Step_id를 deployment로 정의
+        uses: actions/deploy-pages@v1 # {소유자}/{저장소명}@{참조자} => 소유자: action, 저장소: deploy-pages, 버전 v1 사용
